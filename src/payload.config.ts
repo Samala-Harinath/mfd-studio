@@ -24,23 +24,29 @@ const dirname = path.dirname(filename)
  * Neon: migrations need a direct (non-pooler) URL; Vercel serverless needs the pooler.
  * Using direct URLs at runtime often hangs login/API until the function times out (504).
  */
-function databaseUrl() {
-  if (process.env.PAYLOAD_MIGRATING === 'true') {
-    return (
-      process.env.DATABASE_URL_UNPOOLED ||
-      process.env.POSTGRES_URL_NON_POOLING ||
-      process.env.DATABASE_URL ||
-      ''
-    )
-  }
+function pooledDatabaseUrl() {
+  return process.env.DATABASE_URL || process.env.POSTGRES_URL || ''
+}
 
+function directDatabaseUrl() {
   return (
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
     process.env.DATABASE_URL_UNPOOLED ||
     process.env.POSTGRES_URL_NON_POOLING ||
-    ''
+    pooledDatabaseUrl()
   )
+}
+
+function databaseUrl() {
+  // Vercel build + serverless: Neon pooler connects reliably; direct often times out.
+  if (process.env.VERCEL) {
+    return pooledDatabaseUrl() || directDatabaseUrl()
+  }
+
+  if (process.env.PAYLOAD_MIGRATING === 'true') {
+    return directDatabaseUrl()
+  }
+
+  return pooledDatabaseUrl() || directDatabaseUrl()
 }
 
 const tenantRoles: Field = {
@@ -72,7 +78,7 @@ export default buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString: databaseUrl(),
-      connectionTimeoutMillis: 10_000,
+      connectionTimeoutMillis: process.env.VERCEL ? 20_000 : 10_000,
       ...(process.env.NODE_ENV === 'production' ? { max: 1, idleTimeoutMillis: 5_000 } : {}),
     },
   }),
