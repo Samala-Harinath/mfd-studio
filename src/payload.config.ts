@@ -16,9 +16,20 @@ import { Services } from './collections/Services'
 import { Tenants } from './collections/tenants'
 import { Users } from './collections/Users'
 import { mfdEndpoints } from './endpoints/mfd'
+import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+
+/** Direct Neon host. The pooled host breaks Payload schema setup and login queries. */
+function databaseUrl() {
+  return (
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL ||
+    ''
+  )
+}
 
 const tenantRoles: Field = {
   name: 'roles',
@@ -48,8 +59,10 @@ export default buildConfig({
   },
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URL || '',
+      connectionString: databaseUrl(),
+      ...(process.env.NODE_ENV === 'production' ? { max: 1 } : {}),
     },
+    prodMigrations: migrations,
   }),
   sharp,
   plugins: [
