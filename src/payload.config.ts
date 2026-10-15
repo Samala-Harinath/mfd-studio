@@ -20,12 +20,25 @@ import { mfdEndpoints } from './endpoints/mfd'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-/** Direct Neon host. The pooled host breaks Payload schema setup and login queries. */
+/**
+ * Neon: migrations need a direct (non-pooler) URL; Vercel serverless needs the pooler.
+ * Using direct URLs at runtime often hangs login/API until the function times out (504).
+ */
 function databaseUrl() {
+  if (process.env.PAYLOAD_MIGRATING === 'true') {
+    return (
+      process.env.DATABASE_URL_UNPOOLED ||
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.DATABASE_URL ||
+      ''
+    )
+  }
+
   return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
     process.env.DATABASE_URL_UNPOOLED ||
     process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DATABASE_URL ||
     ''
   )
 }
@@ -59,7 +72,8 @@ export default buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString: databaseUrl(),
-      ...(process.env.NODE_ENV === 'production' ? { max: 1 } : {}),
+      connectionTimeoutMillis: 10_000,
+      ...(process.env.NODE_ENV === 'production' ? { max: 1, idleTimeoutMillis: 5_000 } : {}),
     },
   }),
   sharp,
