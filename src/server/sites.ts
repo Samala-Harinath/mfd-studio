@@ -31,7 +31,7 @@ export class SiteError extends Error {
 
 const RESERVED_SLUGS = new Set(['admin', 'api', 'app', 'dashboard', 'login', 'signup', 'site', 'www'])
 
-type Row = { id: number; [key: string]: unknown }
+type Row = { id: number;[key: string]: unknown }
 
 type LoadOptions = { includePrivate: boolean; req?: Partial<PayloadRequest> }
 
@@ -172,6 +172,10 @@ export async function loadSite(payload: Payload, tenantId: number, { includePriv
     })),
     visitors: tenant.visitors ?? 0,
     meetings: tenant.meetings ?? 0,
+    enabledCalculators: sanitiseEnabledCalculators(
+      tenant.enabledCalculators,
+      (tenant.plan ?? 'essential') as PlanId,
+    ),
   }
 }
 
@@ -422,10 +426,10 @@ export async function saveSite(
         euin: member.euin,
         role: member.role,
       })),
-    },
       ...(view.enabledCalculators == null
         ? {}
         : { enabledCalculators: sanitiseEnabledCalculators(view.enabledCalculators, plan.id) ?? [] }),
+    },
   })
 
   await syncRows({
