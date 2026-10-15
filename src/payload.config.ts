@@ -16,7 +16,6 @@ import { Services } from './collections/Services'
 import { Tenants } from './collections/tenants'
 import { Users } from './collections/Users'
 import { mfdEndpoints } from './endpoints/mfd'
-import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -62,7 +61,6 @@ export default buildConfig({
       connectionString: databaseUrl(),
       ...(process.env.NODE_ENV === 'production' ? { max: 1 } : {}),
     },
-    prodMigrations: migrations,
   }),
   sharp,
   plugins: [
